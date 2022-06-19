@@ -42,6 +42,8 @@ struct gameData
     float fgPos;
     const int gravity{1000};
     bool isGameOver{false};
+    bool isGameWon{false};
+    bool debug{true};
     // Graphics
 };
 
@@ -85,6 +87,9 @@ void update(struct gameData *game_data, const float &deltaTime)
     {
         dasher.velocity += dasher.jumpVel;
     }
+    // update dasher
+    dasher.pos.y += dasher.velocity * deltaTime;
+
     if (!nebulas.empty())
     {
         for (std::list<nebula>::iterator n = nebulas.begin(); n != nebulas.end();)
@@ -98,8 +103,8 @@ void update(struct gameData *game_data, const float &deltaTime)
             }
             else
             {
-                float pad = 20;
-                CheckCollisionRecs(
+                float pad = 50;
+                game_data->isGameOver |= CheckCollisionRecs(
                     {n->pos.x + pad, n->pos.y + pad, n->graphics.rect.width - 2 * pad, n->graphics.rect.height - 2 * pad},
                     {dasher.pos.x, dasher.pos.y, dasher.graphics.rect.width, dasher.graphics.rect.height});
                 n++;
@@ -108,7 +113,10 @@ void update(struct gameData *game_data, const float &deltaTime)
     }
     // update finish line
     game_data->finishLine += game_data->nebulas.back().velocity * deltaTime;
-
+    if (game_data->finishLine < game_data->dasherChar.pos.x)
+    {
+        game_data->isGameWon = true;
+    }
     // update background position
     game_data->bgPos += -20 * deltaTime;
     if (game_data->bgPos <= -game_data->background.width * 2)
@@ -125,8 +133,6 @@ void update(struct gameData *game_data, const float &deltaTime)
     {
         game_data->fgPos = 0;
     }
-    // update dasher
-    dasher.pos.y += dasher.velocity * deltaTime;
 
     // dasher animation
     if (!dasher.isJumping)
@@ -158,18 +164,32 @@ void draw(struct gameData *game_data, const float &deltaTime)
 {
     dasherChar &dasher = game_data->dasherChar;
     std::list<nebula> &nebulas = game_data->nebulas;
+    float pad = 50;
     BeginDrawing();
     ClearBackground(RAYWHITE);
-
     drawBackground(game_data);
-
-    // Draw Nebula
-    for (nebula n : nebulas)
+    if (game_data->isGameOver)
     {
-        DrawTextureRec(n.graphics.texture, n.graphics.rect, n.pos, WHITE);
+        DrawText("GameOver!", game_data->screenWidth / 2 - MeasureText("GameOver!", 50) / 2, game_data->screenHeight / 2 - 50, 50, WHITE);
     }
-    // Draw dasher
-    DrawTextureRec(dasher.graphics.texture, dasher.graphics.rect, dasher.pos, WHITE);
+    else if (game_data->isGameWon)
+    {
+        DrawText("You Win!", game_data->screenWidth / 2 - MeasureText("You Win!", 50) / 2, game_data->screenHeight / 2 - 50, 50, WHITE);
+    }
+    else
+    {
+        // Draw Nebula
+        for (nebula n : nebulas)
+        {
+            if (game_data->debug)
+                DrawRectangle(n.pos.x + pad, n.pos.y + pad, n.graphics.rect.width - 2 * pad, n.graphics.rect.height - 2 * pad, RED);
+            DrawTextureRec(n.graphics.texture, n.graphics.rect, n.pos, WHITE);
+        }
+        // Draw dasher
+        if (game_data->debug)
+            DrawRectangle(dasher.pos.x, dasher.pos.y, dasher.graphics.rect.width, dasher.graphics.rect.height, BLUE);
+        DrawTextureRec(dasher.graphics.texture, dasher.graphics.rect, dasher.pos, WHITE);
+    }
     EndDrawing();
 }
 
@@ -194,9 +214,7 @@ int main(int argc, char const *argv[])
     // nebula
     Texture2D nebulaTexture = LoadTexture("textures/12_nebula_spritesheet.png");
     Rectangle nebulaRect{0.0, 0.0, nebulaTexture.width / 8, nebulaTexture.height / 8};
-    std::list<struct nebula> nebulas{{{screenWidth, screenHeight - nebulaRect.height}, {nebulaRect, nebulaTexture, 61}},
-                                     {{screenWidth + 200, screenHeight - nebulaRect.height}, {nebulaRect, nebulaTexture, 61}},
-                                     {{screenWidth + 250, screenHeight - nebulaRect.height}, {nebulaRect, nebulaTexture, 61}}};
+    std::list<struct nebula> nebulas{};
 
     for (int i = 0; i < 10; i++)
     {
